@@ -3,12 +3,47 @@
  */
 package ic7cc.ovchinnikov.lab1;
 
+import ic7cc.ovchinnikov.lab1.tree.ParseTree;
+import ic7cc.ovchinnikov.lab1.tree.TreeNode;
+
 public class App {
-    public String getGreeting() {
-        return "Hello world.";
-    }
 
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+       // TreeNode<String> node = buildParseTreeArEx("(10 + 5 * 3)");
+        ParseTree parseTree = new ParseTree("abb(a|b)*");
+        parseTree.build();
+        //System.out.println(node);
+    }
+
+    public static TreeNode<String> buildParseTreeArEx(String regex) {
+        TreeNode<String> root = new TreeNode<>("");
+
+        regex = regex.replaceAll("\\s", "");
+
+        TreeNode<String> nodeNow = root;
+        for (int i = 0; i < regex.length(); i++) {
+            char ch = regex.charAt(i);
+
+            if (ch == '(') {
+                nodeNow = nodeNow.addChild("");
+            } else if (ch == '+' || ch == '-' || ch == '/' || ch == '*') {
+                nodeNow.setData(ch + "");
+                nodeNow = nodeNow.addChild("");
+            } else if (Character.isDigit(ch)) {
+                nodeNow.setData(ch + "");
+                for (int j = i + 1; j < regex.length(); j++) {
+                    if (Character.isDigit(regex.charAt(j)))
+                        nodeNow.setData(nodeNow.getData() + regex.charAt(j));
+                    else {
+                        i = j - 1;
+                        break;
+                    }
+                }
+                nodeNow = nodeNow.getParent();
+            } else if (ch == ')') {
+                nodeNow = nodeNow.getParent();
+            }
+        }
+        return root;
     }
 }
