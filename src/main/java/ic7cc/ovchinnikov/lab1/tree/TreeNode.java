@@ -8,8 +8,8 @@ public class TreeNode<T> implements Iterable<TreeNode<T>> {
 
     private T data;
     private TreeNode<T> parent;
-    private List<TreeNode<T>> children;
-    private List<TreeNode<T>> elementIndex;
+    private List<? super TreeNode<T>> children;
+    private List<? super TreeNode<T>> elementIndex;
 
     public TreeNode(T data) {
         this.data = data;
@@ -33,9 +33,9 @@ public class TreeNode<T> implements Iterable<TreeNode<T>> {
             return parent.getLevel() + 1;
     }
 
-    public TreeNode<T> findTreeNode(Comparable<T> cmp) {
-        for (TreeNode<T> element : this.elementIndex) {
-            T elData = element.data;
+    public Object findTreeNode(Comparable<T> cmp) {
+        for (Object element : this.elementIndex) {
+            T elData = ((TreeNode<T>) element).data;
             if (cmp.compareTo(elData) == 0)
                 return element;
         }
@@ -66,11 +66,11 @@ public class TreeNode<T> implements Iterable<TreeNode<T>> {
         this.parent = parent;
     }
 
-    public List<TreeNode<T>> getChildren() {
+    public List<? super TreeNode<T>> getChildren() {
         return children;
     }
 
-    public void setChildren(List<TreeNode<T>> children) {
+    public void setChildren(List<? super TreeNode<T>> children) {
         this.children = children;
     }
 

@@ -3,8 +3,7 @@
  */
 package ic7cc.ovchinnikov.lab1;
 
-import ic7cc.ovchinnikov.lab1.tree.BinaryTreeNode;
-import ic7cc.ovchinnikov.lab1.tree.ParseTree;
+import ic7cc.ovchinnikov.lab1.tree.ParseTreeBuilder;
 import ic7cc.ovchinnikov.lab1.tree.TreeNode;
 
 import java.util.Map;
@@ -12,16 +11,8 @@ import java.util.Map;
 public class App {
 
     public static void main(String[] args) {
-        ParseTree parseTree = new ParseTree("(a|b)*abсb#");
-        TreeNode<Map<String, String>> treeRoot = parseTree.build();
-        System.out.println(parseTree.getFollowPos());
-    }
-
-    private static String createIndent(int depth) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < depth; i++) {
-            sb.append(' ');
-        }
-        return sb.toString();
+        ParseTreeBuilder parseTreeBuilder = new ParseTreeBuilder("(a|b)*abb");
+        ParseTreeBuilder.ParseTreeNode treeRoot = parseTreeBuilder.build();
+        System.out.println(parseTreeBuilder.getFollowPos());
     }
 }

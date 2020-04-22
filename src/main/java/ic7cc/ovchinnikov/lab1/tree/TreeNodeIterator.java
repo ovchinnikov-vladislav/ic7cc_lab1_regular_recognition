@@ -6,9 +6,9 @@ public class TreeNodeIterator<T> implements Iterator<TreeNode<T>> {
 
     private TreeNode<T> node;
     private ProcessStages doNext;
-    private TreeNode<T> next;
-    private Iterator<TreeNode<T>> childrenCurNodeIterator;
-    private Iterator<TreeNode<T>> childrenSubNodeIterator;
+    private Object next;
+    private Iterator<? super TreeNode<T>> childrenCurNodeIterator;
+    private Iterator<? super TreeNode<T>> childrenSubNodeIterator;
 
     public TreeNodeIterator(TreeNode<T> node) {
         this.node = node;
@@ -26,8 +26,8 @@ public class TreeNodeIterator<T> implements Iterator<TreeNode<T>> {
 
         if (this.doNext == ProcessStages.PROCESS_CHILD_CUR_NODE) {
             if (childrenCurNodeIterator.hasNext()) {
-                TreeNode<T> childDirect = childrenCurNodeIterator.next();
-                childrenSubNodeIterator = childDirect.iterator();
+                Object childDirect = childrenCurNodeIterator.next();
+                childrenSubNodeIterator = ((TreeNode<T>) childDirect).iterator();
                 this.doNext = ProcessStages.PROCESS_CHILD_SUB_NODE;
                 return hasNext();
             } else {
@@ -52,7 +52,7 @@ public class TreeNodeIterator<T> implements Iterator<TreeNode<T>> {
 
     @Override
     public TreeNode<T> next() {
-        return this.next;
+        return (TreeNode<T>) this.next;
     }
 
     @Override
