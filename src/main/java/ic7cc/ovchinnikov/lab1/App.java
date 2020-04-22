@@ -3,16 +3,23 @@
  */
 package ic7cc.ovchinnikov.lab1;
 
-import ic7cc.ovchinnikov.lab1.tree.ParseTreeBuilder;
-import ic7cc.ovchinnikov.lab1.tree.TreeNode;
-
-import java.util.Map;
+import ic7cc.ovchinnikov.lab1.fa.DFA;
+import ic7cc.ovchinnikov.lab1.tree.ParseTree;
 
 public class App {
 
     public static void main(String[] args) {
-        ParseTreeBuilder parseTreeBuilder = new ParseTreeBuilder("(a|b)*abb");
-        ParseTreeBuilder.ParseTreeNode treeRoot = parseTreeBuilder.build();
-        System.out.println(parseTreeBuilder.getFollowPos());
+        ParseTree parseTree = new ParseTree();
+        ParseTree.ParseTreeNode treeRoot = parseTree.build("(0|1)*101(0|1)*");
+        System.out.println(parseTree.getFollowPos());
+        System.out.println(parseTree.getNumberAndCharMap() + "\n");
+
+        DFA dfa = new DFA();
+        dfa.build(parseTree);
+
+        System.out.println(dfa.getDStates());
+        System.out.println(dfa.getDTrans());
+        System.out.println("Start: " + dfa.getStart());
+        System.out.println("End: " + dfa.getEnd());
     }
 }

@@ -4,29 +4,35 @@ import ic7cc.ovchinnikov.lab1.exception.UncaughtOperationException;
 
 import java.util.*;
 
-public class ParseTreeBuilder {
+public class ParseTree {
 
-    private String regex;
     private ParseTreeNode root;
     private Deque<ParseTreeNode> stack;
 
     private Map<Integer, Set<Integer>> followPos;
+    private Map<String, Set<Integer>> numberAndCharMap;
 
-    public ParseTreeBuilder(String regex) {
-        this.regex = regex + "#";
-    }
+    public ParseTreeNode build(String regex) {
+        if (regex == null)
+            throw new UncaughtOperationException("Регулярное выражение не может быть: " + null);
 
-    public ParseTreeNode build() {
+        regex += "#";
         followPos = new TreeMap<>();
+        numberAndCharMap = new TreeMap<>();
         stack = new ArrayDeque<>();
 
         char[] rpnRegexString = RPNRegex.build(regex).toCharArray();
 
         int numberL = 0;
         for (char ch : rpnRegexString) {
-            if (Character.isAlphabetic(ch) || ch == '#') {
+            if (Character.isAlphabetic(ch) || Character.isDigit(ch) || ch == '#') {
                 numberL++;
                 ParseTreeNode node = createOperandNode(ch, numberL);
+                if (ch != '#') {
+                    Set<Integer> numbers = numberAndCharMap.getOrDefault(String.valueOf(ch), new TreeSet<>());
+                    numbers.add(numberL);
+                    numberAndCharMap.put(String.valueOf(ch), numbers);
+                }
                 stack.push(node);
             } else if (isBinaryOperation(ch) || isUnaryOperation(ch)) {
                 ParseTreeNode node = createOperationNode(ch);
@@ -38,6 +44,10 @@ public class ParseTreeBuilder {
             throw new UncaughtOperationException("Стек пуст, корень не найден, возможно регулярное выражение некорректно составлено.");
 
         root = stack.pop();
+        return root;
+    }
+
+    public ParseTreeNode getRoot() {
         return root;
     }
 
@@ -164,10 +174,16 @@ public class ParseTreeBuilder {
             set.addAll(((ParseTreeNode) children.get(1)).firstPos);
             followPos.put(l, set);
         }
+
+        node.setChildren(children);
     }
 
     public Map<Integer, Set<Integer>> getFollowPos() {
-        return followPos;
+        return Collections.unmodifiableMap(followPos);
+    }
+
+    public Map<String, Set<Integer>> getNumberAndCharMap() {
+        return Collections.unmodifiableMap(numberAndCharMap);
     }
 
     private boolean isUnaryOperation(char oper) {
@@ -209,8 +225,34 @@ public class ParseTreeBuilder {
             this.nullable = false;
         }
 
+        public boolean isUnaryOperation() {
+            return unaryOperation;
+        }
+
+        public boolean isBinaryOperation() {
+            return binaryOperation;
+        }
+
+        public boolean isNullable() {
+            return nullable;
+        }
+
+        public Set<Integer> getFirstPos() {
+            return firstPos;
+        }
+
+        public Set<Integer> getLastPos() {
+            return lastPos;
+        }
+
+        public TypeOperation getType() {
+            return type;
+        }
+
         private enum TypeOperation {
             STAR, OR, CAT, NOT_OPERATION
         }
     }
+
+
 }
