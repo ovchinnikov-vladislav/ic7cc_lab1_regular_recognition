@@ -1,4 +1,4 @@
-package ic7cc.ovchinnikov.lab1.tree;
+package ic7cc.ovchinnikov.lab1.util;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -52,10 +52,10 @@ public class RPNRegex {
         for (int i = 0; i < regex.length(); i++) {
             char ch = regex.charAt(i);
             afterRegex.append(ch);
-            if (Character.isAlphabetic(ch) || Character.isDigit(ch) || ch == '*' || ch == '+') {
+            if (Character.isAlphabetic(ch) || Character.isDigit(ch) || ch == '*' || ch == '+' || ch == ')' || ch == '@') {
                 if (i < regex.length() - 1) {
                     char nextChar = regex.charAt(i + 1);
-                    if (Character.isAlphabetic(nextChar) || Character.isDigit(nextChar) || nextChar == '#' || nextChar == '(')
+                    if (Character.isAlphabetic(nextChar) || Character.isDigit(nextChar) || nextChar == '#' || nextChar == '(' || nextChar == '@')
                         afterRegex.append('.');
                 }
             }

@@ -3,23 +3,117 @@
  */
 package ic7cc.ovchinnikov.lab1;
 
-import ic7cc.ovchinnikov.lab1.fa.DFA;
+import ic7cc.ovchinnikov.lab1.fa.FA;
 import ic7cc.ovchinnikov.lab1.tree.ParseTree;
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 public class App {
 
-    public static void main(String[] args) {
+    // TODO: В общем то почти все, осталось написать тесты к матчеру и т.п., что не захвачено
+    // TODO: провести отладку
+    public static void main(String[] args) throws IOException {
         ParseTree parseTree = new ParseTree();
-        ParseTree.ParseTreeNode treeRoot = parseTree.build("(0|1)*101(0|1)*");
+        ParseTree.ParseTreeNode treeRoot = parseTree.build("(a|b)*abb");
         System.out.println(parseTree.getFollowPos());
         System.out.println(parseTree.getNumberAndCharMap() + "\n");
+        parseTree.printTree();
 
-        DFA dfa = new DFA();
-        dfa.build(parseTree);
+        FA fa = FA.buildDFA(parseTree);
 
-        System.out.println(dfa.getDStates());
-        System.out.println(dfa.getDTrans());
-        System.out.println("Start: " + dfa.getStart());
-        System.out.println("End: " + dfa.getEnd());
+        System.out.println("DFA: " + fa.getStates());
+        System.out.println("DFA: " + fa.getTrans());
+        System.out.println("Alphabet: " + fa.getAlphabet());
+        System.out.println("Start: " + fa.getStart());
+        System.out.println("End: " + fa.getEnd() + "\n");
+
+        fa.printFA();
+
+        FA rFA = FA.det(FA.rec(FA.det(FA.rec(fa))));
+
+        System.out.println("Min DFA: " + rFA.getStates());
+        System.out.println("Min DFA: " + rFA.getTrans());
+        System.out.println("Alphabet: " + rFA.getAlphabet());
+        System.out.println("Start: " + rFA.getStart());
+        System.out.println("End: " + rFA.getEnd() + "\n");
+
+        fa.printFA();
+
+        System.out.println(rFA.match("abb"));
+       // testMin();
+    }
+
+    private static void testMinBigFA() {
+        FA fa = new FA();
+        fa.getAlphabet().add("a");
+        fa.getAlphabet().add("b");
+        fa.getAlphabet().add("@");
+
+        fa.getStates().add("0");
+        fa.getStates().add("1");
+        fa.getStates().add("2");
+        fa.getStates().add("3");
+        fa.getStates().add("4");
+        fa.getStates().add("5");
+        fa.getStates().add("6");
+        fa.getStates().add("7");
+        fa.getStates().add("8");
+        fa.getStates().add("9");
+        fa.getStates().add("10");
+
+        fa.getStart().add("0");
+        fa.getEnd().add("10");
+
+        fa.addTrans("0", "1", "@");
+        fa.addTrans("0", "7", "@");
+        fa.addTrans("1","2", "@");
+        fa.addTrans("1", "4", "@");
+        fa.addTrans("2", "3", "a");
+        fa.addTrans("3", "6", "@");
+        fa.addTrans("4", "5", "b");
+        fa.addTrans("5", "6", "@");
+        fa.addTrans("6", "1", "@");
+        fa.addTrans("6", "7", "@");
+        fa.addTrans("7", "8", "a");
+        fa.addTrans("8", "9", "b");
+        fa.addTrans("9", "10", "b");
+
+        FA minFA = FA.det(fa);
+
+        System.out.println("After: ");
+        System.out.println("\tMin DFA: " + minFA.getStates());
+        System.out.println("\tMin DFA: " + minFA.getTrans());
+        System.out.println("\tAlphabet: " + minFA.getAlphabet());
+        System.out.println("\tStart: " + minFA.getStart());
+        System.out.println("\tEnd: " + minFA.getEnd() + "\n");
+    }
+
+    private static void testMin() {
+        FA fa = new FA();
+        fa.getAlphabet().add("a");
+        fa.getAlphabet().add("@");
+
+        fa.getStates().add("1");
+        fa.getStates().add("2");
+        fa.getStates().add("3");
+        fa.getStates().add("4");
+
+        fa.getStart().add("1");
+        fa.getEnd().add("4");
+
+        fa.addTrans("1", "2", "@");
+        fa.addTrans("2", "3", "a");
+        fa.addTrans("3", "4", "@");
+
+        FA minFA = FA.det(fa);
+
+        System.out.println("After: ");
+        System.out.println("\tMin DFA: " + minFA.getStates());
+        System.out.println("\tMin DFA: " + minFA.getTrans());
+        System.out.println("\tAlphabet: " + minFA.getAlphabet());
+        System.out.println("\tStart: " + minFA.getStart());
+        System.out.println("\tEnd: " + minFA.getEnd() + "\n");
     }
 }

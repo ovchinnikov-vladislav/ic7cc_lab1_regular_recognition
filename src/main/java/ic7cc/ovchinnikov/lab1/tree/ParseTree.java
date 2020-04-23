@@ -1,7 +1,22 @@
 package ic7cc.ovchinnikov.lab1.tree;
 
-import ic7cc.ovchinnikov.lab1.exception.UncaughtOperationException;
+import guru.nidi.graphviz.attribute.*;
+import guru.nidi.graphviz.engine.Format;
+import guru.nidi.graphviz.engine.Graphviz;
+import guru.nidi.graphviz.model.Graph;
+import guru.nidi.graphviz.model.Node;
 
+import static guru.nidi.graphviz.attribute.Label.Justification.LEFT;
+import static guru.nidi.graphviz.model.Factory.*;
+import static guru.nidi.graphviz.attribute.Records.*;
+import static guru.nidi.graphviz.model.Compass.*;
+
+import ic7cc.ovchinnikov.lab1.exception.UncaughtOperationException;
+import ic7cc.ovchinnikov.lab1.util.RPNRegex;
+
+import java.io.File;
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 
 public class ParseTree {
@@ -16,7 +31,7 @@ public class ParseTree {
         if (regex == null)
             throw new UncaughtOperationException("Регулярное выражение не может быть: " + null);
 
-        regex += "#";
+        regex = "(" + regex + ")#";
         followPos = new TreeMap<>();
         numberAndCharMap = new TreeMap<>();
         stack = new ArrayDeque<>();
@@ -25,7 +40,7 @@ public class ParseTree {
 
         int numberL = 0;
         for (char ch : rpnRegexString) {
-            if (Character.isAlphabetic(ch) || Character.isDigit(ch) || ch == '#') {
+            if (Character.isAlphabetic(ch) || Character.isDigit(ch) || ch == '@' || ch == '#') {
                 numberL++;
                 ParseTreeNode node = createOperandNode(ch, numberL);
                 if (ch != '#') {
@@ -53,12 +68,17 @@ public class ParseTree {
 
     private ParseTreeNode createOperandNode(char ch, int numberL) {
         ParseTreeNode node = new ParseTreeNode(String.valueOf(ch));
+        node.type = ParseTreeNode.TypeOperation.NOT_OPERATION;
+        if (ch == '@') {
+            node.type = ParseTreeNode.TypeOperation.EPSILON;
+            node.nullable = true;
+            node.firstPos = Set.of();
+            node.lastPos = Set.of(numberL);
+            return node;
+        }
+
         node.firstPos.add(numberL);
         node.lastPos.add(numberL);
-        if (ch == 'e')
-            node.nullable = true;
-
-        node.type = ParseTreeNode.TypeOperation.NOT_OPERATION;
 
         if (ch == '#') {
             followPos.put(numberL, null);
@@ -124,7 +144,9 @@ public class ParseTree {
 
         for (Object object : children) {
             ParseTreeNode childNode = (ParseTreeNode) object;
-            node.firstPos.addAll(childNode.firstPos);
+            if (childNode.type != ParseTreeNode.TypeOperation.EPSILON) {
+                node.firstPos.addAll(childNode.firstPos);
+            }
             node.lastPos.addAll(childNode.lastPos);
             nullable.add(childNode.nullable);
         }
@@ -149,7 +171,9 @@ public class ParseTree {
         for (Object object : children) {
             ParseTreeNode childNode = (ParseTreeNode) object;
             nullable.add(childNode.nullable);
-            firstPosChildren.add(childNode.firstPos);
+            if (childNode.type != ParseTreeNode.TypeOperation.EPSILON) {
+                firstPosChildren.add(childNode.firstPos);
+            }
             lastPosChildren.add(childNode.lastPos);
         }
 
@@ -250,9 +274,43 @@ public class ParseTree {
         }
 
         private enum TypeOperation {
-            STAR, OR, CAT, NOT_OPERATION
+            STAR, OR, CAT, NOT_OPERATION, EPSILON
         }
     }
 
+    public void printTree() throws IOException {
+        class PairNode {
+            private Node first;
+            private ParseTreeNode second;
 
+            PairNode(Node first, ParseTreeNode second) { this.first = first; this.second = second; }
+        }
+
+        Deque<PairNode> deque = new ArrayDeque<>();
+        int i = 0;
+        Node rootNode = node(String.valueOf(i)).with(Label.html("\"" + root.getData() +
+                "\" (fp: " + root.getFirstPos() +
+                " lp: " + root.getLastPos() + ")"));
+        PairNode pair = new PairNode(rootNode, root);
+        deque.push(pair);
+
+        Graph g = graph("Parse Tree").directed();
+        while (!deque.isEmpty()) {
+            PairNode popNode = deque.pop();
+            Node oldNode = popNode.first;
+            for (Object obj : popNode.second.getChildren()) {
+                if (obj instanceof ParseTreeNode) {
+                    ParseTreeNode n = (ParseTreeNode) obj;
+                    Node newNode = node(String.valueOf(++i)).with(Label.html("\"" + n.getData() +
+                            "\" (fp: " + n.getFirstPos() +
+                            " lp: " + n.getLastPos() + ")"));
+                    oldNode = oldNode.link(to(newNode));
+                    deque.push(new PairNode(newNode, n));
+                }
+            }
+            g = g.with(oldNode);
+        }
+
+        Graphviz.fromGraph(g).width(900).render(Format.PNG).toFile(new File("graph/parse_tree_"+ UUID.randomUUID() +".png"));
+    }
 }
