@@ -6,17 +6,13 @@ import guru.nidi.graphviz.engine.Graphviz;
 import guru.nidi.graphviz.model.Graph;
 import guru.nidi.graphviz.model.Node;
 
-import static guru.nidi.graphviz.attribute.Label.Justification.LEFT;
 import static guru.nidi.graphviz.model.Factory.*;
-import static guru.nidi.graphviz.attribute.Records.*;
-import static guru.nidi.graphviz.model.Compass.*;
 
-import ic7cc.ovchinnikov.lab1.exception.UncaughtOperationException;
+import ic7cc.ovchinnikov.lab1.exception.UmpossibleOperationException;
 import ic7cc.ovchinnikov.lab1.util.RPNRegex;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.*;
 
 public class ParseTree {
@@ -25,16 +21,23 @@ public class ParseTree {
     private Deque<ParseTreeNode> stack;
 
     private Map<Integer, Set<Integer>> followPos;
-    private Map<String, Set<Integer>> numberAndCharMap;
+    private Map<String, Set<Integer>> operands;
 
-    public ParseTreeNode build(String regex) {
+    private ParseTree() {}
+
+    public static ParseTree build(String regex) {
         if (regex == null)
-            throw new UncaughtOperationException("Регулярное выражение не может быть: " + null);
+            throw new UmpossibleOperationException("Регулярное выражение не может быть: " + null);
+
+        if (regex.isEmpty())
+            regex = "@";
+
+        ParseTree parseTree = new ParseTree();
 
         regex = "(" + regex + ")#";
-        followPos = new TreeMap<>();
-        numberAndCharMap = new TreeMap<>();
-        stack = new ArrayDeque<>();
+        parseTree.followPos = new TreeMap<>();
+        parseTree.operands = new TreeMap<>();
+        parseTree.stack = new ArrayDeque<>();
 
         char[] rpnRegexString = RPNRegex.build(regex).toCharArray();
 
@@ -42,34 +45,34 @@ public class ParseTree {
         for (char ch : rpnRegexString) {
             if (Character.isAlphabetic(ch) || Character.isDigit(ch) || ch == '@' || ch == '#') {
                 numberL++;
-                ParseTreeNode node = createOperandNode(ch, numberL);
+                ParseTreeNode node = createOperandNode(parseTree, ch, numberL);
                 if (ch != '#') {
-                    Set<Integer> numbers = numberAndCharMap.getOrDefault(String.valueOf(ch), new TreeSet<>());
+                    Set<Integer> numbers = parseTree.operands.getOrDefault(String.valueOf(ch), new TreeSet<>());
                     numbers.add(numberL);
-                    numberAndCharMap.put(String.valueOf(ch), numbers);
+                    parseTree.operands.put(String.valueOf(ch), numbers);
                 }
-                stack.push(node);
+                parseTree.stack.push(node);
             } else if (isBinaryOperation(ch) || isUnaryOperation(ch)) {
-                ParseTreeNode node = createOperationNode(ch);
-                stack.push(node);
+                ParseTreeNode node = createOperationNode(parseTree, ch);
+                parseTree.stack.push(node);
             }
         }
 
-        if (stack.size() != 1)
-            throw new UncaughtOperationException("Стек пуст, корень не найден, возможно регулярное выражение некорректно составлено.");
+        if (parseTree.stack.size() != 1)
+            throw new UmpossibleOperationException("Стек пуст, корень не найден, возможно регулярное выражение некорректно составлено.");
 
-        root = stack.pop();
-        return root;
+        parseTree.root = parseTree.stack.pop();
+        return parseTree;
     }
 
     public ParseTreeNode getRoot() {
         return root;
     }
 
-    private ParseTreeNode createOperandNode(char ch, int numberL) {
-        ParseTreeNode node = new ParseTreeNode(String.valueOf(ch));
+    private static ParseTreeNode createOperandNode(ParseTree tree, char operand, int numberL) {
+        ParseTreeNode node = new ParseTreeNode(String.valueOf(operand));
         node.type = ParseTreeNode.TypeOperation.NOT_OPERATION;
-        if (ch == '@') {
+        if (operand == '@') {
             node.type = ParseTreeNode.TypeOperation.EPSILON;
             node.nullable = true;
             node.firstPos = Set.of();
@@ -80,23 +83,23 @@ public class ParseTree {
         node.firstPos.add(numberL);
         node.lastPos.add(numberL);
 
-        if (ch == '#') {
-            followPos.put(numberL, null);
+        if (operand == '#') {
+            tree.followPos.put(numberL, null);
         }
 
         return node;
     }
 
-    private ParseTreeNode createOperationNode(char ch) {
-        ParseTreeNode node = new ParseTreeNode(String.valueOf(ch));
-        node.type = checkOperation(ch);
-        node.binaryOperation = isBinaryOperation(ch);
-        node.unaryOperation = isUnaryOperation(ch);
+    private static ParseTreeNode createOperationNode(ParseTree tree, char operation) {
+        ParseTreeNode node = new ParseTreeNode(String.valueOf(operation));
+        node.type = checkOperation(operation);
+        node.binaryOperation = isBinaryOperation(operation);
+        node.unaryOperation = isUnaryOperation(operation);
 
         int i = 0;
         List<? super TreeNode<String>> children = new LinkedList<>();
-        while (!stack.isEmpty()) {
-            ParseTreeNode popNode = stack.pop();
+        while (!tree.stack.isEmpty()) {
+            ParseTreeNode popNode = tree.stack.pop();
             popNode.setParent(node);
             children.add(0, popNode);
             i++;
@@ -106,13 +109,13 @@ public class ParseTree {
 
         switch (node.type) {
             case STAR:
-                doIfOperationStar(node, children);
+                doIfOperationStar(tree, node, children);
                 break;
             case OR:
                 doIfOperationOr(node, children);
                 break;
             case CAT:
-                doIfOperationCat(node, children);
+                doIfOperationCat(tree, node, children);
                 break;
         }
 
@@ -121,7 +124,7 @@ public class ParseTree {
         return node;
     }
 
-    private void doIfOperationStar(ParseTreeNode node, List<? super TreeNode<String>> children) {
+    private static void doIfOperationStar(ParseTree tree, ParseTreeNode node, List<? super TreeNode<String>> children) {
         node.nullable = true;
 
         for (Object object : children) {
@@ -131,15 +134,15 @@ public class ParseTree {
         }
 
         for (Integer l : node.lastPos) {
-            Set<Integer> set = followPos.getOrDefault(l, new TreeSet<>());
+            Set<Integer> set = tree.followPos.getOrDefault(l, new TreeSet<>());
             set.addAll(node.firstPos);
-            followPos.put(l, set);
+            tree.followPos.put(l, set);
         }
 
         node.setChildren(children);
     }
 
-    private void doIfOperationOr(ParseTreeNode node, List<? super TreeNode<String>> children) {
+    private static void doIfOperationOr(ParseTreeNode node, List<? super TreeNode<String>> children) {
         List<Boolean> nullable = new ArrayList<>();
 
         for (Object object : children) {
@@ -163,7 +166,7 @@ public class ParseTree {
         node.setChildren(children);
     }
 
-    private void doIfOperationCat(ParseTreeNode node, List<? super TreeNode<String>> children) {
+    private static void doIfOperationCat(ParseTree tree, ParseTreeNode node, List<? super TreeNode<String>> children) {
         List<Boolean> nullable = new ArrayList<>();
         List<Set<Integer>> firstPosChildren = new ArrayList<>();
         List<Set<Integer>> lastPosChildren = new ArrayList<>();
@@ -194,9 +197,9 @@ public class ParseTree {
         }
 
         for (Integer l : ((ParseTreeNode) children.get(0)).lastPos) {
-            Set<Integer> set = followPos.getOrDefault(l, new TreeSet<>());
+            Set<Integer> set = tree.followPos.getOrDefault(l, new TreeSet<>());
             set.addAll(((ParseTreeNode) children.get(1)).firstPos);
-            followPos.put(l, set);
+            tree.followPos.put(l, set);
         }
 
         node.setChildren(children);
@@ -206,20 +209,20 @@ public class ParseTree {
         return Collections.unmodifiableMap(followPos);
     }
 
-    public Map<String, Set<Integer>> getNumberAndCharMap() {
-        return Collections.unmodifiableMap(numberAndCharMap);
+    public Map<String, Set<Integer>> getOperands() {
+        return Collections.unmodifiableMap(operands);
     }
 
-    private boolean isUnaryOperation(char oper) {
+    private static boolean isUnaryOperation(char oper) {
         return oper == '+' || oper == '*';
     }
 
-    private boolean isBinaryOperation(char oper) {
+    private static boolean isBinaryOperation(char oper) {
         return oper == '|' || oper == '.';
     }
 
-    private ParseTreeNode.TypeOperation checkOperation(char oper) {
-        switch (oper) {
+    private static ParseTreeNode.TypeOperation checkOperation(char operation) {
+        switch (operation) {
             case '*':
                 return ParseTreeNode.TypeOperation.STAR;
             case '|':
@@ -227,12 +230,37 @@ public class ParseTree {
             case '.':
                 return ParseTreeNode.TypeOperation.CAT;
             default:
-                throw new UncaughtOperationException("Неопределена операция: " + oper);
+                throw new UmpossibleOperationException("Неопределена операция: " + operation);
         }
+    }
+
+    public void printPNG(String fullName) throws IOException {
+        Deque<ParseTreeNode> deque = new ArrayDeque<>();
+        deque.push(root);
+
+        Graph g = graph("Parse Tree").directed();
+        while (!deque.isEmpty()) {
+            ParseTreeNode popNode = deque.pop();
+            Node oldNode = node(popNode.getId().toString()).with(Label.html("\"" + popNode.getData() +
+                    "\" (fp: " + popNode.getFirstPos() +
+                    " lp: " + popNode.getLastPos() + ")"));
+            for (Object obj : popNode.getChildren()) {
+                ParseTreeNode n = (ParseTreeNode) obj;
+                Node newNode = node(n.getId().toString()).with(Label.html("\"" + n.getData() +
+                        "\" (fp: " + n.getFirstPos() +
+                        " lp: " + n.getLastPos() + ")"));
+                oldNode = oldNode.link(to(newNode));
+                deque.push(n);
+            }
+            g = g.with(oldNode);
+        }
+
+        Graphviz.fromGraph(g).width(900).render(Format.PNG).toFile(new File(fullName));
     }
 
     public static class ParseTreeNode extends TreeNode<String> {
 
+        private final UUID id;
         private boolean unaryOperation;
         private boolean binaryOperation;
         private boolean nullable;
@@ -242,11 +270,16 @@ public class ParseTree {
 
         public ParseTreeNode(String data) {
             super(data);
+            this.id = UUID.randomUUID();
             this.firstPos = new TreeSet<>();
             this.lastPos = new TreeSet<>();
             this.unaryOperation = false;
             this.binaryOperation = false;
             this.nullable = false;
+        }
+
+        public UUID getId() {
+            return id;
         }
 
         public boolean isUnaryOperation() {
@@ -276,41 +309,5 @@ public class ParseTree {
         private enum TypeOperation {
             STAR, OR, CAT, NOT_OPERATION, EPSILON
         }
-    }
-
-    public void printTree() throws IOException {
-        class PairNode {
-            private Node first;
-            private ParseTreeNode second;
-
-            PairNode(Node first, ParseTreeNode second) { this.first = first; this.second = second; }
-        }
-
-        Deque<PairNode> deque = new ArrayDeque<>();
-        int i = 0;
-        Node rootNode = node(String.valueOf(i)).with(Label.html("\"" + root.getData() +
-                "\" (fp: " + root.getFirstPos() +
-                " lp: " + root.getLastPos() + ")"));
-        PairNode pair = new PairNode(rootNode, root);
-        deque.push(pair);
-
-        Graph g = graph("Parse Tree").directed();
-        while (!deque.isEmpty()) {
-            PairNode popNode = deque.pop();
-            Node oldNode = popNode.first;
-            for (Object obj : popNode.second.getChildren()) {
-                if (obj instanceof ParseTreeNode) {
-                    ParseTreeNode n = (ParseTreeNode) obj;
-                    Node newNode = node(String.valueOf(++i)).with(Label.html("\"" + n.getData() +
-                            "\" (fp: " + n.getFirstPos() +
-                            " lp: " + n.getLastPos() + ")"));
-                    oldNode = oldNode.link(to(newNode));
-                    deque.push(new PairNode(newNode, n));
-                }
-            }
-            g = g.with(oldNode);
-        }
-
-        Graphviz.fromGraph(g).width(900).render(Format.PNG).toFile(new File("graph/parse_tree_"+ UUID.randomUUID() +".png"));
     }
 }

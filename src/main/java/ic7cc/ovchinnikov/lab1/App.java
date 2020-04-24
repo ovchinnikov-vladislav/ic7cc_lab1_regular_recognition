@@ -7,19 +7,16 @@ import ic7cc.ovchinnikov.lab1.fa.FA;
 import ic7cc.ovchinnikov.lab1.tree.ParseTree;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class App {
 
-    // TODO: В общем то почти все, осталось написать тесты к матчеру и т.п., что не захвачено
-    // TODO: провести отладку
     public static void main(String[] args) throws IOException {
-        ParseTree parseTree = new ParseTree();
-        ParseTree.ParseTreeNode treeRoot = parseTree.build("(a|b)*abb");
+        ParseTree parseTree = ParseTree.build("b*");
         System.out.println(parseTree.getFollowPos());
-        System.out.println(parseTree.getNumberAndCharMap() + "\n");
-        parseTree.printTree();
+        System.out.println(parseTree.getOperands() + "\n");
+        parseTree.printPNG("new/parse_tree.png");
 
         FA fa = FA.buildDFA(parseTree);
 
@@ -29,7 +26,7 @@ public class App {
         System.out.println("Start: " + fa.getStart());
         System.out.println("End: " + fa.getEnd() + "\n");
 
-        fa.printFA();
+        fa.printPNG("new/dfa.png");
 
         FA rFA = FA.det(FA.rec(FA.det(FA.rec(fa))));
 
@@ -39,13 +36,13 @@ public class App {
         System.out.println("Start: " + rFA.getStart());
         System.out.println("End: " + rFA.getEnd() + "\n");
 
-        fa.printFA();
+        fa.printPNG("new/min_fa.png");
 
         System.out.println(rFA.match("abb"));
-       // testMin();
+        testMinBigFA();
     }
 
-    private static void testMinBigFA() {
+    private static void testMinBigFA() throws IOException {
         FA fa = new FA();
         fa.getAlphabet().add("a");
         fa.getAlphabet().add("b");
@@ -80,7 +77,9 @@ public class App {
         fa.addTrans("8", "9", "b");
         fa.addTrans("9", "10", "b");
 
-        FA minFA = FA.det(fa);
+        fa.printPNG("min/nfa.png");
+
+        FA minFA = FA.det(FA.rec(FA.det(FA.rec(fa))));
 
         System.out.println("After: ");
         System.out.println("\tMin DFA: " + minFA.getStates());
@@ -88,6 +87,8 @@ public class App {
         System.out.println("\tAlphabet: " + minFA.getAlphabet());
         System.out.println("\tStart: " + minFA.getStart());
         System.out.println("\tEnd: " + minFA.getEnd() + "\n");
+
+        minFA.printPNG("min/dfa.png");
     }
 
     private static void testMin() {

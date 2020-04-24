@@ -6,30 +6,31 @@ import java.util.Deque;
 public class RPNRegex {
 
     private static Deque<String> stack;
-    private static final StringBuilder output = new StringBuilder();
+    private static StringBuilder output;
 
     public static String build(String regex) {
         stack = new ArrayDeque<>();
+        output = new StringBuilder();
 
         char[] chars = preProcessingRegex(regex);
 
         for (char ch : chars) {
             switch (ch) {
                 case '|':
-                    gotOper(ch + "", 1);
+                    doIfReadOperation(ch + "", 1);
                     break;
                 case '.':
-                    gotOper(ch + "", 2);
+                    doIfReadOperation(ch + "", 2);
                     break;
                 case '*':
                 case '+':
-                    gotOper(ch + "", 3);
+                    doIfReadOperation(ch + "", 3);
                     break;
                 case '(':
                     stack.push(ch + "");
                     break;
                 case ')':
-                    gotParen(ch + "");
+                    doIfReadClosingBrackets();
                     break;
                 case ' ':
                 case '\t':
@@ -63,19 +64,21 @@ public class RPNRegex {
         return afterRegex.toString().toCharArray();
     }
 
-    private static void gotOper(String opThis, int prec1) {
+    private static void doIfReadOperation(String opThis, int priority) {
         while (!stack.isEmpty()) {
             String opTop = stack.pop();
             if (opTop.equals("(")) {
                 stack.push(opTop);
                 break;
             } else {
-                int prec2;
+                int priorityNew;
                 if (opTop.equals("|"))
-                    prec2 = 1;
+                    priorityNew = 1;
+                else if (opTop.equals("."))
+                    priorityNew = 2;
                 else
-                    prec2 = 2;
-                if (prec2 < prec1) {
+                    priorityNew = 3;
+                if (priorityNew < priority) {
                     stack.push(opTop);
                     break;
                 } else {
@@ -86,7 +89,7 @@ public class RPNRegex {
         stack.push(opThis);
     }
 
-    private static void gotParen(String ch) {
+    private static void doIfReadClosingBrackets() {
         while (!stack.isEmpty()) {
             String chx = stack.pop();
             if (chx.equals("("))

@@ -1,6 +1,5 @@
 package ic7cc.ovchinnikov.lab1.fa;
 
-import guru.nidi.graphviz.attribute.Color;
 import guru.nidi.graphviz.attribute.Label;
 import guru.nidi.graphviz.attribute.Rank;
 import guru.nidi.graphviz.attribute.Style;
@@ -8,17 +7,21 @@ import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
 import guru.nidi.graphviz.model.Graph;
 import guru.nidi.graphviz.model.Node;
+import ic7cc.ovchinnikov.lab1.exception.UmpossibleOperationException;
 import ic7cc.ovchinnikov.lab1.tree.ParseTree;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.*;
 
 import static guru.nidi.graphviz.attribute.Rank.RankDir.LEFT_TO_RIGHT;
 import static guru.nidi.graphviz.model.Factory.*;
 
 public class FA {
+
+    private static final Logger logger = LoggerFactory.getLogger(FA.class);
 
     private Set<String> start;
     private Set<String> end;
@@ -35,21 +38,24 @@ public class FA {
     }
 
     public static FA buildDFA(ParseTree tree) {
-        FA dfa = new FA();
+        if (tree == null)
+            throw new UmpossibleOperationException("Невалидный параметр: tree - " + null);
 
+        FA dfa = new FA();
         Map<Boolean, List<Set<Integer>>> dStates = new HashMap<>();
+        List<DTran<Set<Integer>>> dTrans = new ArrayList<>();
+
         dStates.put(true, new LinkedList<>());
         dStates.put(false, new LinkedList<>());
 
-        List<DTran<Set<Integer>>> dTrans = new ArrayList<>();
-        Set<Integer> s = tree.getRoot().getFirstPos();
-
         var listFalse = dStates.get(false);
+
+        Set<Integer> s = tree.getRoot().getFirstPos();
         listFalse.add(s);
 
         Set<Integer> dStart = s;
 
-        Map<String, Set<Integer>> alphabetWithNumber = tree.getNumberAndCharMap();
+        Map<String, Set<Integer>> alphabetWithNumber = tree.getOperands();
         while (dStates.get(false).size() > 0) {
 
             s = dStates.get(false).remove(0);
@@ -80,6 +86,7 @@ public class FA {
 
             }
         }
+
         Set<Set<Integer>> dEnd = new HashSet<>();
         Integer numberEnd = null;
         for (Map.Entry<Integer, Set<Integer>> entry : tree.getFollowPos().entrySet()) {
@@ -92,56 +99,17 @@ public class FA {
                 dEnd.add(state);
         }
 
-        System.out.println("Log buildDFA:");
-        System.out.println("\tDFA: " + dStates.get(true));
-        System.out.println("\tDFA: " + dTrans);
-        System.out.println("\tAlphabet: " + dfa.alphabet);
-        System.out.println("\tStart: " + dStart);
-        System.out.println("\tEnd: " + dEnd + "\n");
+        logger.info("Построение ДКА непосредственно из регулярного выражения (дерево разбора): ");
+        logger.info("\tСостояния ДКА: {}", dStates.get(true));
+        logger.info("\tПути ДКА: {}", dStates.get(true));
+        logger.info("\tАлфавит: {}", dfa.alphabet);
+        logger.info("\tНачальное состояние: {}", dStart);
+        logger.info("\tКонечные состояния: {}", dEnd);
 
-        int i = 1;
-        Map<Set<Integer>, Integer> map = new HashMap<>();
-        for (Set<Integer> dState : dStates.get(true)) {
-            dfa.states.add(String.valueOf(i));
-            map.put(dState, i);
-            i++;
-        }
+        FA resultDFA = renamingFA(dStates.get(true), dTrans, Collections.singleton(dStart), dEnd);
+        resultDFA.alphabet = dfa.alphabet;
 
-        for (DTran<Set<Integer>> dTran : dTrans) {
-            DTran<String> tran = new DTran<>();
-            tran.startState = String.valueOf(map.get(dTran.startState));
-            tran.endState = String.valueOf(map.get(dTran.endState));
-            tran.value = dTran.value;
-            dfa.trans.add(tran);
-        }
-
-        for (Set<Integer> end : dEnd) {
-            dfa.end.add(String.valueOf(map.get(end)));
-        }
-
-        dfa.start = new HashSet<>(Collections.singleton(String.valueOf(map.get(dStart))));
-
-        return dfa;
-    }
-
-    public Set<String> getStates() {
-        return states;
-    }
-
-    public List<DTran<String>> getTrans() {
-        return trans;
-    }
-
-    public Set<String> getStart() {
-        return start;
-    }
-
-    public Set<String> getEnd() {
-        return end;
-    }
-
-    public Set<String> getAlphabet() {
-        return alphabet;
+        return resultDFA;
     }
 
     public static FA rec(FA fa) {
@@ -164,13 +132,13 @@ public class FA {
 
     public static FA det(FA nfa) {
         FA dfa = new FA();
-
         Map<Boolean, List<Set<String>>> dStates = new HashMap<>();
+        List<DTran<Set<String>>> dTrans = new ArrayList<>();
+
         dStates.put(true, new LinkedList<>());
         dStates.put(false, new LinkedList<>());
 
         Set<String> t = epsClosure(nfa.trans, nfa.start.toArray(String[]::new));
-        List<DTran<Set<String>>> dTrans = new ArrayList<>();
 
         var listFalse = dStates.get(false);
         listFalse.add(t);
@@ -216,37 +184,18 @@ public class FA {
         }
         dfa.alphabet = new TreeSet<>(nfa.alphabet);
 
-        System.out.println("Log det:");
-        System.out.println("\tDFA: " + dStates.get(true));
-        System.out.println("\tDFA: " + dTrans);
-        System.out.println("\tAlphabet: " + dfa.alphabet);
-        System.out.println("\tStart: " + dStart);
-        System.out.println("\tEnd: " + dEnd + "\n");
+        logger.info("Построение ДКА из НКА: ");
+        logger.info("\tСостояния ДКА: {}", dStates.get(true));
+        logger.info("\tПути ДКА: {}", dStates.get(true));
+        logger.info("\tАлфавит: {}", dfa.alphabet);
+        logger.info("\tНачальное состояние: {}", dStart);
+        logger.info("\tКонечные состояния: {}", dEnd);
 
-        int i = 1;
-        Map<Set<String>, Integer> map = new HashMap<>();
-        for (Set<String> dState : dStates.get(true)) {
-            dfa.states.add(String.valueOf(i));
-            map.put(dState, i);
-            i++;
-        }
+        FA resultDFA = renamingFA(dStates.get(true), dTrans, Collections.singleton(dStart), dEnd);
 
-        for (DTran<Set<String>> dTran : dTrans) {
-            DTran<String> tran = new DTran<>();
-            tran.startState = String.valueOf(map.get(dTran.startState));
-            tran.endState = String.valueOf(map.get(dTran.endState));
-            tran.value = dTran.value;
-            dfa.trans.add(tran);
-        }
+        resultDFA.alphabet = dfa.alphabet;
 
-        for (Set<String> end : dEnd) {
-            dfa.end.add(String.valueOf(map.get(end)));
-        }
-
-        dfa.start = new HashSet<>();
-        dfa.start.add(String.valueOf(map.get(dStart)));
-
-        return dfa;
+        return resultDFA;
     }
 
     private static Set<String> epsClosure(List<DTran<String>> dTrans, String... tStates) {
@@ -270,34 +219,38 @@ public class FA {
         return epsClosureStates;
     }
 
-    private static class DTran<T> {
-        private T startState;
-        private String value;
-        private T endState;
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            DTran<?> dTran = (DTran<?>) o;
-            return Objects.equals(startState, dTran.startState) &&
-                    Objects.equals(value, dTran.value) &&
-                    Objects.equals(endState, dTran.endState);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(startState, value, endState);
-        }
-
-        @Override
-        public String toString() {
-            return "(" + startState + " -> " + value + " -> " + endState + ")";
-        }
-    }
-
     public static FA minFA(FA fa) {
         return det(rec(det(rec(fa))));
+    }
+
+    private static <T> FA renamingFA(List<Set<T>> states, List<DTran<Set<T>>> trans, Set<Set<T>> starts, Set<Set<T>> ends) {
+        FA fa = new FA();
+
+        int i = 1;
+        Map<Set<T>, Integer> map = new HashMap<>();
+        for (Set<T> dState : states) {
+            fa.states.add(String.valueOf(i));
+            map.put(dState, i);
+            i++;
+        }
+
+        for (DTran<Set<T>> dTran : trans) {
+            DTran<String> tran = new DTran<>();
+            tran.startState = String.valueOf(map.get(dTran.startState));
+            tran.endState = String.valueOf(map.get(dTran.endState));
+            tran.value = dTran.value;
+            fa.trans.add(tran);
+        }
+
+        for (Set<T> end : ends) {
+            fa.end.add(String.valueOf(map.get(end)));
+        }
+
+        for (Set<T> start : starts) {
+            fa.start.add(String.valueOf(map.get(start)));
+        }
+
+        return fa;
     }
 
     public boolean addTrans(String startState, String endState, String value) {
@@ -308,7 +261,7 @@ public class FA {
         return trans.add(dTran);
     }
 
-    public void printFA() throws IOException {
+    public void printPNG(String fullName) throws IOException {
         Graph g = graph("FA").directed().graphAttr().with(Rank.dir(LEFT_TO_RIGHT));
         for (DTran<String> tran : trans) {
             Node startNode = node(tran.startState);
@@ -321,7 +274,7 @@ public class FA {
             g = g.with(startNode);
         }
 
-        Graphviz.fromGraph(g).width(900).render(Format.PNG).toFile(new File("graph/fa_"+ UUID.randomUUID() +".png"));
+        Graphviz.fromGraph(g).width(900).render(Format.PNG).toFile(new File(fullName));
     }
 
     public boolean match(String value) {
@@ -348,5 +301,51 @@ public class FA {
         }
 
         return end.contains(nowState);
+    }
+
+    public Set<String> getStates() {
+        return states;
+    }
+
+    public List<DTran<String>> getTrans() {
+        return trans;
+    }
+
+    public Set<String> getStart() {
+        return start;
+    }
+
+    public Set<String> getEnd() {
+        return end;
+    }
+
+    public Set<String> getAlphabet() {
+        return alphabet;
+    }
+
+    private static class DTran<T> {
+        private T startState;
+        private String value;
+        private T endState;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            DTran<?> dTran = (DTran<?>) o;
+            return Objects.equals(startState, dTran.startState) &&
+                    Objects.equals(value, dTran.value) &&
+                    Objects.equals(endState, dTran.endState);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(startState, value, endState);
+        }
+
+        @Override
+        public String toString() {
+            return "(" + startState + " -> " + value + " -> " + endState + ")";
+        }
     }
 }
