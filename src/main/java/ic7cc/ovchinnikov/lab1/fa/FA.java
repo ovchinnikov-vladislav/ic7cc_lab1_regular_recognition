@@ -26,24 +26,29 @@ public class FA {
     private Set<String> start;
     private Set<String> end;
     private Set<String> states;
-    private List<DTran<String>> trans;
+    private Set<DTran<String>> trans;
     private Set<String> alphabet;
 
     public FA() {
         states = new TreeSet<>();
-        trans = new ArrayList<>();
+        trans = new HashSet<>();
         alphabet = new TreeSet<>();
         start = new HashSet<>();
         end = new HashSet<>();
     }
 
+    public static FA buildDFA(String regex) {
+        ParseTree tree = ParseTree.build(regex);
+        return buildDFA(tree);
+    }
+
     public static FA buildDFA(ParseTree tree) {
         if (tree == null)
-            throw new UmpossibleOperationException("Невалидный параметр: tree - " + null);
+            throw new UmpossibleOperationException("Invalid param: tree - " + null);
 
         FA dfa = new FA();
         Map<Boolean, List<Set<Integer>>> dStates = new HashMap<>();
-        List<DTran<Set<Integer>>> dTrans = new ArrayList<>();
+        Set<DTran<Set<Integer>>> dTrans = new HashSet<>();
 
         dStates.put(true, new LinkedList<>());
         dStates.put(false, new LinkedList<>());
@@ -99,12 +104,12 @@ public class FA {
                 dEnd.add(state);
         }
 
-        logger.info("Построение ДКА непосредственно из регулярного выражения (дерево разбора): ");
-        logger.info("\tСостояния ДКА: {}", dStates.get(true));
-        logger.info("\tПути ДКА: {}", dStates.get(true));
-        logger.info("\tАлфавит: {}", dfa.alphabet);
-        logger.info("\tНачальное состояние: {}", dStart);
-        logger.info("\tКонечные состояния: {}", dEnd);
+        logger.info("Construction of a DFA by NFA: ");
+        logger.info("\tStates of DFA: {}", dStates.get(true));
+        logger.info("\tTrans of DFA: {}", dTrans);
+        logger.info("\tAlphabet: {}", dfa.alphabet);
+        logger.info("\tStart state: {}", dStart);
+        logger.info("\tEnd state: {}", dEnd);
 
         FA resultDFA = renamingFA(dStates.get(true), dTrans, Collections.singleton(dStart), dEnd);
         resultDFA.alphabet = dfa.alphabet;
@@ -133,7 +138,7 @@ public class FA {
     public static FA det(FA nfa) {
         FA dfa = new FA();
         Map<Boolean, List<Set<String>>> dStates = new HashMap<>();
-        List<DTran<Set<String>>> dTrans = new ArrayList<>();
+        Set<DTran<Set<String>>> dTrans = new HashSet<>();
 
         dStates.put(true, new LinkedList<>());
         dStates.put(false, new LinkedList<>());
@@ -184,12 +189,12 @@ public class FA {
         }
         dfa.alphabet = new TreeSet<>(nfa.alphabet);
 
-        logger.info("Построение ДКА из НКА: ");
-        logger.info("\tСостояния ДКА: {}", dStates.get(true));
-        logger.info("\tПути ДКА: {}", dStates.get(true));
-        logger.info("\tАлфавит: {}", dfa.alphabet);
-        logger.info("\tНачальное состояние: {}", dStart);
-        logger.info("\tКонечные состояния: {}", dEnd);
+        logger.info("Construction of a DFA by NFA: ");
+        logger.info("\tStates of DFA: {}", dStates.get(true));
+        logger.info("\tTrans of DFA: {}", dTrans);
+        logger.info("\tAlphabet: {}", dfa.alphabet);
+        logger.info("\tStart state: {}", dStart);
+        logger.info("\tEnd state: {}", dEnd);
 
         FA resultDFA = renamingFA(dStates.get(true), dTrans, Collections.singleton(dStart), dEnd);
 
@@ -198,7 +203,7 @@ public class FA {
         return resultDFA;
     }
 
-    private static Set<String> epsClosure(List<DTran<String>> dTrans, String... tStates) {
+    private static Set<String> epsClosure(Set<DTran<String>> dTrans, String... tStates) {
         Set<String> epsClosureStates = new HashSet<>();
 
         Deque<String> deque = new ArrayDeque<>();
@@ -223,7 +228,7 @@ public class FA {
         return det(rec(det(rec(fa))));
     }
 
-    private static <T> FA renamingFA(List<Set<T>> states, List<DTran<Set<T>>> trans, Set<Set<T>> starts, Set<Set<T>> ends) {
+    private static <T> FA renamingFA(List<Set<T>> states, Set<DTran<Set<T>>> trans, Set<Set<T>> starts, Set<Set<T>> ends) {
         FA fa = new FA();
 
         int i = 1;
@@ -278,8 +283,11 @@ public class FA {
     }
 
     public boolean match(String value) {
+        if (alphabet.size() == 0)
+            throw new UnsupportedOperationException("FA not built");
+
         if (start.size() != 1)
-            throw new UnsupportedOperationException("Конечный автомат недетерминирован");
+            throw new UnsupportedOperationException("FA not built");
 
         String nowState = start.iterator().next();
 
@@ -293,7 +301,7 @@ public class FA {
             }
 
             if (nextStates.size() > 1)
-                throw new UnsupportedOperationException("Конечный автомат недетерминирован");
+                throw new UnsupportedOperationException("FA nondeterministic");
             else if (nextStates.size() == 0)
                 return false;
 
@@ -307,7 +315,7 @@ public class FA {
         return states;
     }
 
-    public List<DTran<String>> getTrans() {
+    public Set<DTran<String>> getTrans() {
         return trans;
     }
 

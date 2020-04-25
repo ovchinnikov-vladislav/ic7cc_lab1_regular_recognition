@@ -5,6 +5,7 @@ package ic7cc.ovchinnikov.lab1;
 
 import ic7cc.ovchinnikov.lab1.fa.FA;
 import ic7cc.ovchinnikov.lab1.tree.ParseTree;
+import ic7cc.ovchinnikov.lab1.util.RPNRegex;
 
 import java.io.IOException;
 import java.util.regex.Matcher;
@@ -13,33 +14,21 @@ import java.util.regex.Pattern;
 public class App {
 
     public static void main(String[] args) throws IOException {
-        ParseTree parseTree = ParseTree.build("b*");
-        System.out.println(parseTree.getFollowPos());
-        System.out.println(parseTree.getOperands() + "\n");
-        parseTree.printPNG("new/parse_tree.png");
 
-        FA fa = FA.buildDFA(parseTree);
+        String regex = "((1|2|3|4|5|6|7|8|9)0*)*";
 
-        System.out.println("DFA: " + fa.getStates());
-        System.out.println("DFA: " + fa.getTrans());
-        System.out.println("Alphabet: " + fa.getAlphabet());
-        System.out.println("Start: " + fa.getStart());
-        System.out.println("End: " + fa.getEnd() + "\n");
+        FA fa = FA.buildDFA(regex);
 
-        fa.printPNG("new/dfa.png");
+        System.out.println(fa.match("12345"));
+        System.out.println(fa.match("01234"));
+        System.out.println(fa.match("32341"));
+        System.out.println(fa.match("00000"));
+        System.out.println(fa.match("1234567890"));
 
-        FA rFA = FA.det(FA.rec(FA.det(FA.rec(fa))));
+    }
 
-        System.out.println("Min DFA: " + rFA.getStates());
-        System.out.println("Min DFA: " + rFA.getTrans());
-        System.out.println("Alphabet: " + rFA.getAlphabet());
-        System.out.println("Start: " + rFA.getStart());
-        System.out.println("End: " + rFA.getEnd() + "\n");
-
-        fa.printPNG("new/min_fa.png");
-
-        System.out.println(rFA.match("abb"));
-        testMinBigFA();
+    private static void testRPN(String regex) {
+        System.out.println(RPNRegex.build(regex));
     }
 
     private static void testMinBigFA() throws IOException {

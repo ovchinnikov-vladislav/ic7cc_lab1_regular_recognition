@@ -27,7 +27,7 @@ public class ParseTree {
 
     public static ParseTree build(String regex) {
         if (regex == null)
-            throw new UmpossibleOperationException("Регулярное выражение не может быть: " + null);
+            throw new UmpossibleOperationException("Regex: " + null);
 
         if (regex.isEmpty())
             regex = "@";
@@ -59,7 +59,7 @@ public class ParseTree {
         }
 
         if (parseTree.stack.size() != 1)
-            throw new UmpossibleOperationException("Стек пуст, корень не найден, возможно регулярное выражение некорректно составлено.");
+            throw new UmpossibleOperationException("The stack is empty, the root was not found, perhaps the regular expression is incorrectly composed.");
 
         parseTree.root = parseTree.stack.pop();
         return parseTree;
@@ -230,7 +230,7 @@ public class ParseTree {
             case '.':
                 return ParseTreeNode.TypeOperation.CAT;
             default:
-                throw new UmpossibleOperationException("Неопределена операция: " + operation);
+                throw new UmpossibleOperationException("Operation undefined: " + operation);
         }
     }
 
